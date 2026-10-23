@@ -1,0 +1,6 @@
+{
+  "name": "استخراج کامنت‌های اینستاگرام به اکسل",
+  "description": "ابزار وب استخراج ناشناس کامنت‌های پست‌های اینستاگرام بدون نام کاربری در قالب فایل اکسل XLSX با دانلود مستقیم",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
