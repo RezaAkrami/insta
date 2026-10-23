@@ -7,7 +7,7 @@ import crypto from 'crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_BOXAPI_TOKEN = process.env.BOXAPI_TOKEN || 'MDkzNzU3MTM3MzA6MTIzNHF3ZXI=';
+const DEFAULT_BOXAPI_TOKEN = process.env.BOXAPI_TOKEN || '';
 const BOXAPI_COMMENTS_URL = 'https://boxapi.ir/api/instagram/media/get_comments';
 
 export interface OnlyCommentItem {
@@ -252,7 +252,7 @@ async function fetchAllCommentsFromBoxApi(
       const data = await res.json();
 
       if (data.success === false) {
-        const msg = data.data?.message || data.message || 'خطا در BoxAPI';
+        const msg = data.data?.message || data.message || 'خطا در برقراری ارتباط با سرویس';
         const isLimit = msg.toLowerCase().includes('limit') || msg.toLowerCase().includes('no more api requests');
 
         // If we already collected comments on earlier pages, return what we have!
@@ -270,7 +270,7 @@ async function fetchAllCommentsFromBoxApi(
           success: false,
           comments: [],
           pagesFetched: page,
-          error: isLimit ? 'اعتبار درخواست‌های حساب BoxAPI شما به پایان رسیده است.' : msg,
+          error: isLimit ? 'اعتبار درخواست‌های حساب شما به پایان رسیده است.' : msg,
           isLimitReached: isLimit,
         };
       }
@@ -375,9 +375,13 @@ async function startServer() {
 
   app.use(express.json({ limit: '20mb' }));
 
-  // API: Check BoxAPI token credits
+  // API: Check token credits
   app.get('/api/boxapi-account', async (req: Request, res: Response) => {
-    const token = (req.query.token as string) || DEFAULT_BOXAPI_TOKEN;
+    const token = (req.query.token as string)?.trim();
+    if (!token) {
+      res.status(400).json({ success: false, error: 'لطفاً توکن را وارد کنید.' });
+      return;
+    }
     const accountInfo = await getBoxApiAccountInfo(token);
     if (accountInfo) {
       res.json({ success: true, account: accountInfo });
@@ -390,8 +394,8 @@ async function startServer() {
   app.post('/api/extract-comments', async (req: Request, res: Response) => {
     try {
       const { url, rawCommentsText, boxapiToken, fetchAllPages } = req.body;
-      const token = (boxapiToken && typeof boxapiToken === 'string' && boxapiToken.trim()) 
-        ? boxapiToken.trim() 
+      const token = (boxapiToken && typeof boxapiToken === 'string' && boxapiToken.trim())
+        ? boxapiToken.trim()
         : DEFAULT_BOXAPI_TOKEN;
 
       let commentsList: string[] = [];
@@ -404,7 +408,12 @@ async function startServer() {
         commentsList = parsePastedCommentsText(rawCommentsText);
         identifierUsed = 'pasted';
       } else {
-        // Mode 2: BoxAPI via URL, Shortcode, or Numeric ID
+        // Mode 2: Via URL, Shortcode, or Numeric ID
+        if (!token) {
+          res.status(400).json({ error: 'لطفاً ابتدا توکن خود را در کادر بالای صفحه وارد کنید.' });
+          return;
+        }
+
         if (!url || typeof url !== 'string') {
           res.status(400).json({ error: 'لطفاً لینک پست اینستاگرام، کد پست یا آیدی عددی پست را وارد کنید.' });
           return;
@@ -440,14 +449,14 @@ async function startServer() {
         if (!boxResult.success) {
           if (boxResult.isLimitReached) {
             res.status(429).json({
-              error: 'اعتبار درخواست‌های حساب BoxAPI شما به پایان رسیده است. لطفاً توکن جدید وارد کنید یا از حالت جای‌گذاری متن کامنت‌ها استفاده کنید.',
+              error: 'اعتبار درخواست‌های حساب شما به پایان رسیده است. لطفاً توکن جدید وارد کنید یا از حالت جای‌گذاری متن کامنت‌ها استفاده کنید.',
               isLimitReached: true,
             });
             return;
           }
 
           res.status(400).json({
-            error: boxResult.error || 'خطا در دریافت کامنت‌ها از سرویس BoxAPI.',
+            error: boxResult.error || 'خطا در دریافت کامنت‌ها از سرویس.',
           });
           return;
         }
